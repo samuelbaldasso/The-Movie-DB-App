@@ -2,8 +2,8 @@ package com.sbaldasso.tmdbapp.presentation.screen.search
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
@@ -17,6 +17,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import com.sbaldasso.tmdbapp.presentation.component.ErrorView
 import com.sbaldasso.tmdbapp.presentation.component.LoadingIndicator
 import com.sbaldasso.tmdbapp.presentation.component.MovieCard
@@ -28,7 +31,8 @@ fun SearchScreen(
     onMovieClick: (Int) -> Unit,
     viewModel: SearchViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val query by viewModel.query.collectAsState()
+    val movies = viewModel.searchResults.collectAsLazyPagingItems()
 
     Scaffold(
         topBar = {
@@ -50,40 +54,39 @@ fun SearchScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Search Bar
             SearchBar(
-                query = uiState.query,
+                query = query,
                 onQueryChange = { viewModel.onQueryChange(it) },
-                onClearClick = { viewModel.clearSearch() }
+                onClearClick = { viewModel.onQueryChange("") }
             )
 
-            // Content
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .weight(1f)
             ) {
                 when {
-                    uiState.isSearching -> {
-                        LoadingIndicator(message = "Buscando filmes...")
-                    }
-
-                    uiState.error != null -> {
-                        ErrorView(
-                            message = uiState.error ?: "Erro na busca",
-                            onRetry = { viewModel.retry() }
-                        )
-                    }
-
-                    !uiState.hasSearched -> {
+                    query.isEmpty() -> {
                         EmptySearchState()
                     }
 
-                    uiState.movies.isEmpty() && uiState.hasSearched -> {
-                        NoResultsState(query = uiState.query)
+                    movies.loadState.refresh is LoadState.Loading -> {
+                        LoadingIndicator(message = "Buscando filmes...")
                     }
 
-                    uiState.movies.isNotEmpty() -> {
+                    movies.loadState.refresh is LoadState.Error -> {
+                        val error = movies.loadState.refresh as LoadState.Error
+                        ErrorView(
+                            message = error.error.message ?: "Erro na busca",
+                            onRetry = { movies.retry() }
+                        )
+                    }
+
+                    movies.itemCount == 0 && movies.loadState.refresh is LoadState.NotLoading -> {
+                        NoResultsState(query = query)
+                    }
+
+                    else -> {
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(2),
                             contentPadding = PaddingValues(16.dp),
@@ -91,13 +94,29 @@ fun SearchScreen(
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             items(
-                                items = uiState.movies,
-                                key = { it.id }
-                            ) { movie ->
-                                MovieCard(
-                                    movie = movie,
-                                    onClick = { onMovieClick(movie.id) }
-                                )
+                                count = movies.itemCount,
+                                key = movies.itemKey { it.id }
+                            ) { index ->
+                                movies[index]?.let { movie ->
+                                    MovieCard(
+                                        movie = movie,
+                                        onClick = { onMovieClick(movie.id) }
+                                    )
+                                }
+                            }
+
+                            // Loading mais itens (append)
+                            if (movies.loadState.append is LoadState.Loading) {
+                                item(span = { GridItemSpan(2) }) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                                    }
+                                }
                             }
                         }
                     }

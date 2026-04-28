@@ -2,16 +2,19 @@ package com.sbaldasso.tmdbapp.presentation.screen.home
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import com.sbaldasso.tmdbapp.presentation.component.ErrorView
 import com.sbaldasso.tmdbapp.presentation.component.LoadingIndicator
 import com.sbaldasso.tmdbapp.presentation.component.MovieCard
@@ -23,19 +26,7 @@ fun HomeScreen(
     onSearchClick: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val listState = rememberLazyGridState()
-
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
-            .collect { lastVisibleIndex ->
-                if (lastVisibleIndex != null &&
-                    lastVisibleIndex >= uiState.movies.size - 4 &&
-                    !uiState.isLoadingMore) {
-                    viewModel.loadMoreMovies()
-                }
-            }
-    }
+    val movies = viewModel.moviesFlow.collectAsLazyPagingItems()
 
     Scaffold(
         topBar = {
@@ -58,57 +49,59 @@ fun HomeScreen(
                 .padding(paddingValues)
         ) {
             when {
-                uiState.isLoading && uiState.movies.isEmpty() -> {
+                movies.loadState.refresh is LoadState.Loading -> {
                     LoadingIndicator()
                 }
 
-                uiState.error != null && uiState.movies.isEmpty() -> {
+                movies.loadState.refresh is LoadState.Error -> {
+                    val error = movies.loadState.refresh as LoadState.Error
                     ErrorView(
-                        message = uiState.error ?: "Erro desconhecido",
-                        onRetry = { viewModel.retry() }
+                        message = error.error.message ?: "Erro ao carregar filmes",
+                        onRetry = { movies.retry() }
                     )
                 }
 
-                uiState.movies.isNotEmpty() -> {
+                else -> {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
-                        state = listState,
                         contentPadding = PaddingValues(16.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(
-                            items = uiState.movies,
-                            key = { it.id }
-                        ) { movie ->
-                            MovieCard(
-                                movie = movie,
-                                onClick = { onMovieClick(movie.id) }
-                            )
-                        }
-
-                        if(uiState.loadMoreError !== null){
-                            item {
-                                ErrorView(
-                                    message = uiState.loadMoreError ?: "Erro desconhecido",
-                                    onRetry = { viewModel.loadMoreMovies() },
+                            count = movies.itemCount,
+                            key = movies.itemKey { it.id }
+                        ) { index ->
+                            movies[index]?.let { movie ->
+                                MovieCard(
+                                    movie = movie,
+                                    onClick = { onMovieClick(movie.id) }
                                 )
                             }
                         }
-                        // Loading indicator no final da lista
-                        if (uiState.isLoadingMore) {
-                            item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(2) }) {
+
+                        // Carregamento de mais itens
+                        if (movies.loadState.append is LoadState.Loading) {
+                            item(span = { GridItemSpan(2) }) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp)
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier
-                                            .size(32.dp)
-                                            .padding(8.dp)
-                                    )
+                                    CircularProgressIndicator(modifier = Modifier.size(32.dp))
                                 }
+                            }
+                        }
+
+                        // Erro ao carregar mais itens
+                        if (movies.loadState.append is LoadState.Error) {
+                            val error = movies.loadState.append as LoadState.Error
+                            item(span = { GridItemSpan(2) }) {
+                                ErrorView(
+                                    message = error.error.message ?: "Erro ao carregar mais",
+                                    onRetry = { movies.retry() }
+                                )
                             }
                         }
                     }

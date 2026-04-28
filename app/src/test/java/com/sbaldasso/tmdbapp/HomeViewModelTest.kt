@@ -1,16 +1,19 @@
-package com.sbaldasso.tmdbapp
-
+import androidx.paging.PagingData
 import app.cash.turbine.test
 import com.sbaldasso.tmdbapp.domain.model.Movie
 import com.sbaldasso.tmdbapp.domain.usecase.GetPopularMoviesUseCase
 import com.sbaldasso.tmdbapp.presentation.screen.home.HomeViewModel
-import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.*
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import org.junit.After
-import org.junit.Assert.*
+import org.junit.Assert.assertNotNull
 import org.junit.Before
 import org.junit.Test
 
@@ -33,51 +36,18 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `loadMovies should update state with movies on success`() = runTest {
+    fun `moviesFlow should emit paging data from use case`() = runTest {
         // Given
-        val movies = listOf(
-            Movie(
-                id = 1,
-                title = "Test Movie",
-                overview = "Test overview",
-                posterPath = "/test.jpg",
-                backdropPath = "/backdrop.jpg",
-                voteAverage = 8.5,
-                releaseDate = "2024-01-01",
-                popularity = 100.0
-            )
-        )
-        coEvery { getPopularMoviesUseCase(1) } returns Result.success(movies)
+        val pagingData = PagingData.from(emptyList<Movie>())
+        every { getPopularMoviesUseCase() } returns flowOf(pagingData)
 
         // When
         viewModel = HomeViewModel(getPopularMoviesUseCase)
-        advanceUntilIdle()
 
         // Then
-        viewModel.uiState.test {
-            val state = awaitItem()
-            assertFalse(state.isLoading)
-            assertEquals(movies, state.movies)
-            assertNull(state.error)
-        }
-    }
-
-    @Test
-    fun `loadMovies should update state with error on failure`() = runTest {
-        // Given
-        val errorMessage = "Network error"
-        coEvery { getPopularMoviesUseCase(1) } returns Result.failure(Exception(errorMessage))
-
-        // When
-        viewModel = HomeViewModel(getPopularMoviesUseCase)
-        advanceUntilIdle()
-
-        // Then
-        viewModel.uiState.test {
-            val state = awaitItem()
-            assertFalse(state.isLoading)
-            assertTrue(state.movies.isEmpty())
-            assertEquals(errorMessage, state.error)
+        viewModel.moviesFlow.test {
+            assertNotNull(awaitItem())
+            cancelAndIgnoreRemainingEvents()
         }
     }
 }

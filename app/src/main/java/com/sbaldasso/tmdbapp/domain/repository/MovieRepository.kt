@@ -5,9 +5,7 @@ import com.sbaldasso.tmdbapp.domain.model.Movie
 import kotlinx.coroutines.flow.Flow
 
 interface MovieRepository {
-    suspend fun getPopularMovies(page: Int): Result<List<Movie>>
     suspend fun getMovieDetails(movieId: Int): Result<Movie>
-    suspend fun searchMovies(query: String, page: Int): Result<List<Movie>>
-    fun getPopularMoviesFlow(): Flow<List<Movie>>
+    fun searchMovies(query: String): Flow<PagingData<Movie>>
     fun getPopularMoviesPaging(): Flow<PagingData<Movie>>
 }

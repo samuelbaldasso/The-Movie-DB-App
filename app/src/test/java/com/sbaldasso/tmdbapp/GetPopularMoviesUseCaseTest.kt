@@ -1,14 +1,22 @@
 package com.sbaldasso.tmdbapp
 
+import androidx.paging.PagingData
+import app.cash.turbine.test
 import com.sbaldasso.tmdbapp.domain.model.Movie
 import com.sbaldasso.tmdbapp.domain.repository.MovieRepository
 import com.sbaldasso.tmdbapp.domain.usecase.GetPopularMoviesUseCase
-import io.mockk.coEvery
+import com.sbaldasso.tmdbapp.presentation.screen.home.HomeViewModel
+import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.*
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Assert.assertNotNull
 import org.junit.Before
 import org.junit.Test
 
@@ -17,41 +25,32 @@ class GetPopularMoviesUseCaseTest {
 
     private lateinit var movieRepository: MovieRepository
     private lateinit var useCase: GetPopularMoviesUseCase
-    private val testDispatcher = UnconfinedTestDispatcher()
 
     @Before
     fun setup() {
         movieRepository = mockk()
-        useCase = GetPopularMoviesUseCase(movieRepository, testDispatcher)
+        useCase = GetPopularMoviesUseCase(movieRepository)
+}
+
+@Test
+fun `invoke should return flow of paging data from repository`() = runTest {
+    // Given
+    val movies = listOf(
+        Movie(1, "Movie 1", "Overview",  null, null, 8.0, "2024-01-01", 100.0)
+    )
+    val pagingData = PagingData.from(movies)
+    every {
+        movieRepository.getPopularMoviesPaging()
+    } returns flowOf(pagingData)
+
+    // When
+    val result = useCase()
+
+    // Then
+    result.test {
+        val emittedPagingData = awaitItem()
+        assertNotNull(emittedPagingData)
+        awaitComplete()
     }
-
-    @Test
-    fun `invoke should return success when repository returns movies`() = runTest {
-        // Given
-        val movies = listOf(
-            Movie(1, "Movie 1", "Overview", null, null, 8.0, "2024-01-01", 100.0)
-        )
-        coEvery { movieRepository.getPopularMovies(1) } returns Result.success(movies)
-
-        // When
-        val result = useCase(1)
-
-        // Then
-        assertTrue(result.isSuccess)
-        assertEquals(movies, result.getOrNull())
-    }
-
-    @Test
-    fun `invoke should return failure when repository throws exception`() = runTest {
-        // Given
-        val exception = Exception("Network error")
-        coEvery { movieRepository.getPopularMovies(1) } returns Result.failure(exception)
-
-        // When
-        val result = useCase(1)
-
-        // Then
-        assertTrue(result.isFailure)
-        assertEquals(exception, result.exceptionOrNull())
-    }
+}
 }

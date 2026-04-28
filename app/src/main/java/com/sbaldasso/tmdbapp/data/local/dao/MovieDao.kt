@@ -1,5 +1,6 @@
 package com.sbaldasso.tmdbapp.data.local.dao
 
+import androidx.paging.PagingSource
 import androidx.room.*
 import com.sbaldasso.tmdbapp.data.local.entity.MovieEntity
 import kotlinx.coroutines.flow.Flow
@@ -30,4 +31,7 @@ interface MovieDao {
 
     @Query("DELETE FROM movies WHERE timestamp < :timestamp")
     suspend fun deleteOldMovies(timestamp: Long)
+
+    @Query("SELECT * FROM movies ORDER BY popularity DESC")
+    fun getMoviesPagingSource(): PagingSource<Int, MovieEntity>
 }

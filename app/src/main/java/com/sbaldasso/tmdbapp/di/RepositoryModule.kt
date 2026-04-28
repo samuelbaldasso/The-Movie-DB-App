@@ -1,6 +1,6 @@
 package com.sbaldasso.tmdbapp.di
 
-import com.sbaldasso.tmdbapp.data.repository.MovieRepositoryImpl
+import com.sbaldasso.tmdbapp.domain.repository.MovieRepositoryImpl
 import com.sbaldasso.tmdbapp.domain.repository.MovieRepository
 import dagger.Binds
 import dagger.Module
