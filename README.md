@@ -246,9 +246,9 @@ com.sbaldasso.tmdbapp/
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/samuelbaldasso/Android-TMDB-App.git
+git clone https://github.com/samuelbaldasso/The-Movie-DB-App.git
 
-cd Android-TMDB-App
+cd The-Movie-DB-App
 ```
 
 2. **Configure the API Key**
