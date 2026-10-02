@@ -4,9 +4,18 @@ A Kotlin and Jetpack Compose application for exploring popular movies, searching
 
 ## Screenshots
 
-| Popular movies | Search | Details |
-|---|---|---|
-| ![Popular movies](screenshots/home.png) | ![Search](screenshots/search_results.png) | ![Details](screenshots/details.png) |
+<table>
+  <tr>
+    <th align="center" width="33%">Popular movies</th>
+    <th align="center" width="33%">Search</th>
+    <th align="center" width="33%">Details</th>
+  </tr>
+  <tr>
+    <td align="center" valign="top"><img src="screenshots/home.png" alt="Popular movies" width="240" /></td>
+    <td align="center" valign="top"><img src="screenshots/search_results.png" alt="Search results" width="240" /></td>
+    <td align="center" valign="top"><img src="screenshots/details.png" alt="Movie details" width="240" /></td>
+  </tr>
+</table>
 
 These screenshots show the interface before favorites were added and card contrast was improved.
 
