@@ -1,5 +1,6 @@
 package com.sbaldasso.tmdbapp.domain.usecase.base
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 
@@ -11,6 +12,8 @@ abstract class UseCase<in P, out R>(
             withContext(coroutineDispatcher) {
                 execute(parameters)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }

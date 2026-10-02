@@ -1,5 +1,6 @@
 package com.sbaldasso.tmdbapp.presentation.navigation
 
+import com.sbaldasso.tmdbapp.presentation.screen.favorites.FavoritesScreen
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -35,9 +36,17 @@ fun NavGraph(
                 onMovieClick = { movieId ->
                     navController.navigate(Screen.Details.createRoute(movieId))
                 },
+                onFavoritesClick = { navController.navigate(Screen.Favorites.route) },
                 onSearchClick = {
                     navController.navigate(Screen.Search.route)
                 }
+            )
+        }
+
+        composable(Screen.Favorites.route) {
+            FavoritesScreen(
+                onBackClick = { navController.navigateUp() },
+                onMovieClick = { navController.navigate(Screen.Details.createRoute(it)) }
             )
         }
 

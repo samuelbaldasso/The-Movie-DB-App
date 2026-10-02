@@ -2,6 +2,7 @@ package com.sbaldasso.tmdbapp.di
 
 import android.content.Context
 import androidx.room.Room
+import com.sbaldasso.tmdbapp.data.local.MIGRATION_2_3
 import com.sbaldasso.tmdbapp.data.local.AppDatabase
 import com.sbaldasso.tmdbapp.data.local.dao.MovieDao
 import dagger.Module
@@ -25,7 +26,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "tmdb_database"
         )
-            .fallbackToDestructiveMigration()
+            .addMigrations(MIGRATION_2_3)
             .build()
     }
 

@@ -1,7 +1,7 @@
 package com.sbaldasso.tmdbapp.data.paging
 
-import androidx.compose.ui.input.key.key
 import androidx.paging.PagingSource
+import kotlinx.coroutines.CancellationException
 import androidx.paging.PagingState
 import com.sbaldasso.tmdbapp.data.remote.api.TMDBApiService
 import com.sbaldasso.tmdbapp.data.remote.mapper.toDomain
@@ -18,8 +18,10 @@ class SearchMoviePagingSource(
             LoadResult.Page(
                 data = movies,
                 prevKey = if (position == 1) null else position - 1,
-                nextKey = if (movies.isEmpty()) null else position + 1
+                nextKey = if (movies.isEmpty() || position >= response.totalPages) null else position + 1
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             LoadResult.Error(e)
         }

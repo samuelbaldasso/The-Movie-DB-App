@@ -6,6 +6,11 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,20 +24,27 @@ import com.sbaldasso.tmdbapp.presentation.component.ErrorView
 import com.sbaldasso.tmdbapp.presentation.component.LoadingIndicator
 import com.sbaldasso.tmdbapp.presentation.component.MovieCard
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
 fun HomeScreen(
     onMovieClick: (Int) -> Unit,
     onSearchClick: () -> Unit,
+    onFavoritesClick: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val movies = viewModel.moviesFlow.collectAsLazyPagingItems()
+
+    val refreshing = movies.loadState.refresh is LoadState.Loading
+    val refreshState = rememberPullRefreshState(refreshing, { movies.refresh() })
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Filmes Populares") },
                 actions = {
+                    IconButton(onClick = onFavoritesClick) {
+                        Icon(Icons.Default.Favorite, contentDescription = "Favoritos")
+                    }
                     IconButton(onClick = onSearchClick) {
                         Icon(
                             imageVector = Icons.Default.Search,
@@ -47,13 +59,14 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .pullRefresh(refreshState)
         ) {
             when {
-                movies.loadState.refresh is LoadState.Loading -> {
+                movies.itemCount == 0 && refreshing -> {
                     LoadingIndicator()
                 }
 
-                movies.loadState.refresh is LoadState.Error -> {
+                movies.itemCount == 0 && movies.loadState.refresh is LoadState.Error -> {
                     val error = movies.loadState.refresh as LoadState.Error
                     ErrorView(
                         message = error.error.message ?: "Erro ao carregar filmes",
@@ -61,9 +74,13 @@ fun HomeScreen(
                     )
                 }
 
+                movies.itemCount == 0 -> {
+                    Text("Nenhum filme disponível.", modifier = Modifier.align(Alignment.Center))
+                }
+
                 else -> {
                     LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
+                        columns = GridCells.Adaptive(160.dp),
                         contentPadding = PaddingValues(16.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -82,7 +99,7 @@ fun HomeScreen(
 
                         // Carregamento de mais itens
                         if (movies.loadState.append is LoadState.Loading) {
-                            item(span = { GridItemSpan(2) }) {
+                            item(span = { GridItemSpan(maxLineSpan) }) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -97,7 +114,7 @@ fun HomeScreen(
                         // Erro ao carregar mais itens
                         if (movies.loadState.append is LoadState.Error) {
                             val error = movies.loadState.append as LoadState.Error
-                            item(span = { GridItemSpan(2) }) {
+                            item(span = { GridItemSpan(maxLineSpan) }) {
                                 ErrorView(
                                     message = error.error.message ?: "Erro ao carregar mais",
                                     onRetry = { movies.retry() }
@@ -107,6 +124,14 @@ fun HomeScreen(
                     }
                 }
             }
+            if (movies.itemCount > 0 && movies.loadState.refresh is LoadState.Error) {
+                Surface(modifier = Modifier.align(Alignment.BottomCenter)) {
+                    TextButton(onClick = { movies.retry() }) {
+                        Text("Sem atualização. Exibindo cache. Tentar novamente")
+                    }
+                }
+            }
+            PullRefreshIndicator(refreshing, refreshState, Modifier.align(Alignment.TopCenter))
         }
     }
 }

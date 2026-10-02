@@ -10,11 +10,9 @@ data class Movie(
     val releaseDate: String,
     val popularity: Double
 ) {
-    fun getPosterUrl(): String {
-        return "https://image.tmdb.org/t/p/w500$posterPath"
-    }
+    fun getPosterUrl(): String? = posterPath?.takeIf { it.isNotBlank() }
+        ?.let { "https://image.tmdb.org/t/p/w500$it" }
 
-    fun getBackdropUrl(): String {
-        return "https://image.tmdb.org/t/p/w780$backdropPath"
-    }
+    fun getBackdropUrl(): String? = backdropPath?.takeIf { it.isNotBlank() }
+        ?.let { "https://image.tmdb.org/t/p/w780$it" }
 }

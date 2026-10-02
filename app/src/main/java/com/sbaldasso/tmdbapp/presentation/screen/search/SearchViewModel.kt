@@ -1,36 +1,48 @@
 package com.sbaldasso.tmdbapp.presentation.screen.search
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.LoadState
+import androidx.paging.LoadStates
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import com.sbaldasso.tmdbapp.domain.model.Movie
 import com.sbaldasso.tmdbapp.domain.usecase.SearchMoviesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import javax.inject.Inject
 
-@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class SearchViewModel @Inject constructor(
-    private val searchMoviesUseCase: SearchMoviesUseCase
+    private val searchMoviesUseCase: SearchMoviesUseCase,
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val _query = MutableStateFlow("")
-    val query = _query.asStateFlow()
+    val query = savedStateHandle.getStateFlow("query", "")
 
-    val searchResults: Flow<PagingData<Movie>> = _query
-        .debounce(500)
-        .filter { it.length >= 3 || it.isEmpty() }
+    val searchResults: Flow<PagingData<Movie>> = query
+        .map { it.trim() }
+        .distinctUntilChanged()
         .flatMapLatest { query ->
-            if (query.isEmpty()) flowOf(PagingData.empty())
-            else searchMoviesUseCase(query)
+            if (query.length < 3) flowOf(PagingData.empty<Movie>(
+                sourceLoadStates = LoadStates(
+                    LoadState.NotLoading(true), LoadState.NotLoading(true), LoadState.NotLoading(true)
+                )
+            ))
+            else flow {
+                emit(PagingData.empty<Movie>(sourceLoadStates = LoadStates(
+                    LoadState.Loading, LoadState.NotLoading(true), LoadState.NotLoading(true)
+                )))
+                kotlinx.coroutines.delay(500)
+                emitAll(searchMoviesUseCase(query))
+            }
         }
         .cachedIn(viewModelScope)
 
     fun onQueryChange(newQuery: String) {
-        _query.value = newQuery
+        savedStateHandle["query"] = newQuery
     }
 }

@@ -1,664 +1,108 @@
-# 📱 TMDB App - Android
+# TMDB App — Android nativo
 
-<div align="center">
+Aplicativo em Kotlin e Jetpack Compose para explorar filmes populares, pesquisar títulos, consultar detalhes e manter favoritos no dispositivo. Projeto de portfólio com foco em paginação, persistência local e fluxos reativos.
 
-![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)
-![Kotlin](https://img.shields.io/badge/Kotlin-0095D5?style=for-the-badge&logo=kotlin&logoColor=white)
-![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)
+## Telas
 
-A modern Android application that consumes the **The Movie Database (TMDB)** API to display popular movie information, following Android development best practices.
+| Populares | Busca | Detalhes |
+|---|---|---|
+| ![Populares](screenshots/home.png) | ![Busca](screenshots/search_results.png) | ![Detalhes](screenshots/details.png) |
 
-[Features](#-features) • [Architecture](#-architecture) • [Tech Stack](#-tech-stack) • [Getting Started](#-getting-started) • [Tests](#-tests)
+As imagens acima registram a interface anterior à inclusão de favoritos e ao ajuste de contraste dos cards.
 
-</div>
+## Funcionalidades
 
----
+- Catálogo de populares com paginação e pull-to-refresh.
+- Busca paginada a partir de três caracteres, com espera de 500 ms e cancelamento ao alterar a consulta.
+- Consulta de detalhes com sinopse, avaliação, data e imagem.
+- Adição e remoção de favoritos nos detalhes; lista acessível pelo coração na home.
+- Favoritos persistidos localmente, disponíveis após fechar e reabrir o app.
+- Estados de carregamento, erro, lista vazia e novas tentativas.
+- Tema claro/escuro e grades adaptáveis à largura disponível.
 
-## 📋 Table of Contents
+## Dados e modo offline
 
-- [Screenshots](#-screenshots)
-- [Features](#-features)
-- [Architecture](#-architecture)
-- [Tech Stack](#-tech-stack)
-- [Project Structure](#-project-structure)
-- [Getting Started](#-getting-started)
-- [API Configuration](#-api-configuration)
-- [Tests](#-tests)
-- [Technical Decisions](#-technical-decisions)
-- [Future Improvements](#-future-improvements)
-- [Contributing](#-contributing)
-- [License](#-license)
+A lista de populares é lida do Room e atualizada pelo `RemoteMediator`. Um refresh bem-sucedido substitui apenas o catálogo de populares e suas chaves de paginação. Se a atualização falhar, o conteúdo já armazenado continua visível.
 
----
+Detalhes e favoritos ficam em tabelas independentes. Consultar um resultado da busca não adiciona esse filme à lista de populares. Para abrir detalhes sem conexão, o repositório tenta o cache de detalhes, os favoritos e, por último, o catálogo salvo. Novas buscas e páginas ainda não carregadas exigem internet. Imagens dependem do cache do Coil e podem não estar disponíveis offline.
 
-## 📸 Screenshots
+O banco está na versão 3, com migração explícita da versão 2 preservando o catálogo existente. Não há expiração automática, criptografia do banco ou sincronização de favoritos entre dispositivos.
 
-<div align="center">
+## Organização
 
-<table>
-  <tr>
-    <td align="center"><b>Splash Screen</b></td>
-    <td align="center"><b>Search Movies</b></td>
-    <td align="center"><b>Search Results</b></td>
-  </tr>
-  <tr>
-    <td><img src="screenshots/splash.png" width="200"/></td>
-    <td><img src="screenshots/search_empty.png" width="200"/></td>
-    <td><img src="screenshots/search_results.png" width="200"/></td>
-  </tr>
-  <tr>
-    <td align="center"><b>Movie Details</b></td>
-    <td align="center"><b>Popular Movies</b></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><img src="screenshots/details.png" width="200"/></td>
-    <td><img src="screenshots/home.png" width="200"/></td>
-  </tr>
-</table>
+Um módulo `app`, organizado em camadas:
 
-</div>
-
----
-
-## ✨ Features
-
-### 🏠 **Home Screen**
-- ✅ List of popular movies from TMDB
-- ✅ Infinite scroll with automatic pagination
-- ✅ Local cache for offline mode
-- ✅ Pull-to-refresh
-- ✅ Loading indicators
-
-### 🔍 **Movie Search**
-- ✅ Real-time search with debounce
-- ✅ Dynamic results
-- ✅ Empty and error states handled
-- ✅ Minimum 3 characters to search
-
-### 🎬 **Movie Details**
-- ✅ Full information (title, synopsis, rating)
-- ✅ High quality images (poster + backdrop)
-- ✅ Release date
-- ✅ Rating with dynamic colors
-
-### 🎨 **UI/UX**
-- ✅ Material Design 3
-- ✅ Dark/Light theme (dynamic support)
-- ✅ Smooth animations
-- ✅ Reusable components
-- ✅ Responsive design
-
-### 🔄 **Technical Features**
-- ✅ Offline mode with Room cache
-- ✅ Robust error handling
-- ✅ Loading states across all flows
-- ✅ Retry on failure
-- ✅ Scalable and testable architecture
-
----
-
-## 🏗 Architecture
-
-The project follows **Clean Architecture** principles combined with the **MVVM** (Model-View-ViewModel) pattern, ensuring separation of concerns and ease of maintenance.
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                   PRESENTATION LAYER                     │
-│  (UI + ViewModels + Navigation + Compose Screens)       │
-└────────────────────┬────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────┐
-│                    DOMAIN LAYER                          │
-│        (Use Cases + Models + Repository Interface)      │
-└────────────────────┬────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────┐
-│                     DATA LAYER                           │
-│    (Repository Impl + Remote + Local + Mappers)         │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Project Layers
-
-#### 📱 **Presentation Layer**
-- **Responsibility**: UI and user interaction
-- **Components**:
-  - `Composables` (Screens and Components)
-  - `ViewModels` (state management)
-  - `Navigation` (screen navigation)
-  - `UiState` (interface states)
-
-#### 🧠 **Domain Layer**
-- **Responsibility**: Business logic
-- **Components**:
-  - `Models` (domain entities)
-  - `Use Cases` (business use cases)
-  - `Repository Interfaces` (contracts)
-
-#### 💾 **Data Layer**
-- **Responsibility**: Data access and manipulation
-- **Components**:
-  - `Repository Implementation`
-  - `Remote Data Source` (API)
-  - `Local Data Source` (Room)
-  - `DTOs` and `Mappers`
-
----
-
-## 🛠 Tech Stack
-
-### **Core**
-- ![Kotlin](https://img.shields.io/badge/Kotlin-1.9.22-blue?logo=kotlin) - Primary language
-- ![Android](https://img.shields.io/badge/Min%20SDK-24-green) - Minimum Android 7.0
-
-### **UI**
-- **Jetpack Compose** - Modern declarative UI
-- **Material 3** - Design system
-- **Coil** - Image loading
-- **Navigation Compose** - Navigation
-
-### **Architecture & DI**
-- **Hilt** - Dependency injection
-- **ViewModel** - State management
-- **StateFlow** - Reactive data flow
-- **Coroutines** - Asynchronous programming
-
-### **Networking**
-- **Retrofit** - HTTP client
-- **OkHttp** - Interceptors and logging
-- **Kotlinx Serialization** - JSON serialization
-
-### **Persistence**
-- **Room** - Local database
-- **Paging 3** - Efficient pagination
-
-### **Build & Configuration**
-- **Gradle Version Catalog** - Dependency management
-- **Kotlin DSL** - Typed Gradle scripts
-
-### **Tests**
-- **JUnit 4** - Testing framework
-- **MockK** - Mocking for Kotlin
-- **Turbine** - Flow testing
-- **Coroutines Test** - Async testing
-
----
-
-## 📁 Project Structure
-
-```
+```text
 com.sbaldasso.tmdbapp/
-│
-├── 📂 data/                          # Data Layer
-│   ├── 📂 local/                     # Local persistence
-│   │   ├── dao/                      # Data Access Objects
-│   │   ├── entity/                   # Room entities
-│   │   ├── mapper/                   # Entity ↔ Domain mappers
-│   │   └── AppDatabase.kt            # Room configuration
-│   ├── 📂 remote/                    # Remote source (API)
-│   │   ├── api/                      # Retrofit services
-│   │   ├── dto/                      # Data Transfer Objects
-│   │   └── mapper/                   # DTO ↔ Domain mappers
-│   ├── 📂 paging/                    # Paging 3 sources
-│   └── 📂 repository/                # Repository implementations
-│
-├── 📂 domain/                        # Domain Layer
-│   ├── 📂 model/                     # Business models
-│   ├── 📂 repository/                # Repository interfaces
-│   └── 📂 usecase/                   # Use cases
-│
-├── 📂 presentation/                  # Presentation Layer
-│   ├── 📂 component/                 # Reusable components
-│   ├── 📂 navigation/                # Navigation configuration
-│   ├── 📂 screen/                    # App screens
-│   │   ├── home/                     # Home screen + ViewModel
-│   │   ├── details/                  # Details screen + ViewModel
-│   │   └── search/                   # Search screen + ViewModel
-│   └── 📂 state/                     # Generic UI states
-│
-├── 📂 di/                            # Dependency Injection
-│   ├── DatabaseModule.kt             # Room module
-│   ├── NetworkModule.kt              # Retrofit module
-│   └── RepositoryModule.kt           # Repository module
-│
-├── 📂 ui/                            # UI Theme
-│   └── theme/                        # Material Theme config
-│
-├── MainActivity.kt                   # Main activity
-└── TmdbApplication.kt               # Application class
+├── data/          # Retrofit, Room, mappers, paginação e implementação do repositório
+├── domain/        # Modelos, contrato do repositório e casos de uso
+├── presentation/  # Telas Compose, ViewModels, estados, componentes e navegação
+├── di/            # Módulos Hilt
+└── ui/theme/      # Tema Material
 ```
 
----
+A interface depende de ViewModels; os casos de uso acessam o contrato `MovieRepository`; a implementação coordena rede e persistência. O domínio usa `PagingData`, portanto não é completamente independente do Android Jetpack. A separação é feita por pacotes, sem multimódulos.
 
-## 🚀 Getting Started
+## Stack
 
-### **Prerequisites**
+Kotlin 1.9.22, Compose + Material 3, Navigation Compose, Hilt, Coroutines/Flow, Retrofit/OkHttp, Kotlinx Serialization, Room, Paging 3 e Coil. Os testes usam JUnit, MockK, Coroutines Test, Paging Testing e Robolectric.
 
-- ✅ Android Studio Hedgehog (2023.1.1) or higher
-- ✅ JDK 17
-- ✅ Android SDK (API 34)
-- ✅ TMDB API Key ([get it here](https://www.themoviedb.org/settings/api))
+As dependências efetivamente utilizadas estão em `app/build.gradle.kts`; o projeto não usa o catálogo de versões para resolvê-las.
 
-### **Step by Step**
+## Executar
 
-1. **Clone the repository**
-```bash
-git clone https://github.com/samuelbaldasso/The-Movie-DB-App.git
+Requisitos: JDK 17, Android Studio compatível com AGP 8.3.0 e SDK Android 34. O aplicativo suporta Android 7.0 (API 24) ou superior. O Gradle Wrapper está incluído.
 
-cd The-Movie-DB-App
-```
-
-2. **Configure the API Key**
-
-Create/edit the `local.properties` file at the project root:
+1. Clone o repositório e abra no Android Studio.
+2. Configure o SDK pelo Android Studio ou pela variável `ANDROID_HOME`.
+3. Crie `local.properties` na raiz, sem versionar:
 
 ```properties
-# Android SDK path (auto-generated)
-sdk.dir=/path/to/Android/sdk
-
-# TMDB API Key
-TMDB_API_KEY=your_api_key_here
+sdk.dir=/caminho/para/Android/sdk
+TMDB_API_KEY=sua_chave_v3
 ```
 
-> ⚠️ **Important**: Never commit the `local.properties` file! It is already in `.gitignore`.
+Também é possível fornecer `TMDB_API_KEY` como variável de ambiente; ela tem prioridade sobre o arquivo local. Obtenha uma chave v3 nas [configurações de API do TMDB](https://www.themoviedb.org/settings/api).
 
-3. **Sync and Build**
-
-In Android Studio:
-- File → Sync Project with Gradle Files
-- Build → Make Project
-
-Or via terminal:
 ```bash
-./gradlew clean build
-```
-
-4. **Run the App**
-
-- Connect a physical device or start an emulator
-- Run → Run 'app'
-
-Or via terminal:
-```bash
+./gradlew assembleDebug
 ./gradlew installDebug
 ```
 
----
+O build e os testes podem rodar sem chave. Nesse caso, chamadas ao catálogo online apresentam um erro de configuração. A chave não tem valor de fallback no código. Como é incorporada ao APK por `BuildConfig`, ela não deve ser tratada como um segredo protegido no dispositivo.
 
-## 🔑 API Configuration
-
-### **Getting a TMDB API Key**
-
-1. Visit [TMDB](https://www.themoviedb.org/)
-2. Create a free account
-3. Go to **Settings → API**
-4. Request an API Key (choose "Developer")
-5. Copy the API Key (v3 auth)
-
-### **Endpoints Used**
-
-| Endpoint | Description | Method |
-|----------|-------------|--------|
-| `/movie/popular` | List popular movies | GET |
-| `/movie/{id}` | Movie details | GET |
-| `/search/movie` | Search movies by query | GET |
-
-**Base URL**: `https://api.themoviedb.org/3/`
-
-**Authentication**: API Key via query parameter
-
----
-
-## 🧪 Tests
-
-### **Running Tests**
+## Validação
 
 ```bash
-# All tests
-./gradlew test
-
-# Unit tests
-./gradlew testDebugUnitTest
-
-# Tests with coverage
-./gradlew testDebugUnitTest jacocoTestReport
+./gradlew testDebugUnitTest lintDebug assembleDebug
 ```
 
-### **Test Structure**
+Os testes verificam:
 
-```
-test/
-├── domain/usecase/
-│   ├── GetPopularMoviesUseCaseTest.kt
-│   ├── GetMovieDetailsUseCaseTest.kt
-│   └── SearchMoviesUseCaseTest.kt
-├── presentation/screen/
-│   ├── home/HomeViewModelTest.kt
-│   ├── details/DetailsViewModelTest.kt
-│   └── search/SearchViewModelTest.kt
-└── data/repository/
-    └── MovieRepositoryImplTest.kt
-```
+- Conteúdo emitido pelo caso de uso de populares e pela HomeViewModel.
+- Debounce, normalização, cancelamento e limpeza dos resultados da busca.
+- Carregamento, erro, retry e falha ao salvar favoritos nos detalhes.
+- Cache de detalhes independente, fallback offline e propagação de cancelamento.
+- Fim da paginação e erros da busca paginada.
+- Persistência e remoção de favoritos após reabrir o banco.
+- Refresh preservando detalhes e favoritos, falha de rede preservando populares e migração 2 → 3 com validação do schema pelo Room.
 
-### **Test Coverage**
+Os testes de banco usam SQLite com Robolectric na JVM. O teste instrumentado de exemplo não representa cobertura dos fluxos de interface. Não há percentual de cobertura declarado nem benchmarks de tamanho, memória ou startup.
 
-- ✅ ViewModels (states and flows)
-- ✅ Use Cases (business logic)
-- ✅ Repository (API and cache integration)
-- ✅ Mappers (data conversions)
+O workflow [Android checks](.github/workflows/android.yml) executa testes, lint e build em pushes e pull requests para `main`, sem credenciais do TMDB, e disponibiliza os relatórios como artefatos.
 
----
+## Decisões e próximos passos
 
-## 💡 Technical Decisions
+- Favoritos guardam uma cópia dos dados do filme, para sobreviver à renovação do catálogo.
+- A busca cancela a espera e a coleta anterior ao mudar a consulta; consultas curtas limpam os resultados.
+- A coleta de estados Compose acompanha o ciclo de vida.
+- Cancelamento de coroutines é propagado, sem virar erro ou disparar fallback de cache.
+- Cards usam gradiente escuro e título branco para melhorar a leitura sobre pôsteres.
 
-### **Why Jetpack Compose?**
-- Declarative and reactive UI
-- Less boilerplate code
-- Real-time preview
-- Native ViewModel integration
+Próximos passos: testes Compose dos fluxos completos, revisão de acessibilidade e fontes grandes, internacionalização dos textos, atualização planejada da toolchain e medição de performance. O target SDK atual é 34; requisitos de distribuição devem ser verificados antes de publicar.
 
-### **Why Clean Architecture?**
-- Clear separation of concerns
-- Easier unit testing
-- More maintainable code
-- Framework independence
+## Autor e licença
 
-### **Why Hilt?**
-- Official Android DI solution
-- Perfect ViewModel integration
-- Lower learning curve
-- Boilerplate reduction
+[Samuel Baldasso](https://github.com/samuelbaldasso). Licença MIT, descrita em [LICENSE](LICENSE).
 
-### **Why Room + Retrofit?**
-- **Room**: Robust local caching
-- **Retrofit**: Most widely used HTTP client
-- **Strategy**: Network-first with cache fallback
-
-### **Why StateFlow?**
-- Simpler API than LiveData
-- Compose compatible
-- Native Coroutines support
-- Type-safe
-
-### **Cache Strategy**
-```kotlin
-1. Try to fetch from API
-   ↓
-2. Save to Room (cache)
-   ↓
-3. Return data
-   ↓
-4. On failure → fetch from cache
-```
-
----
-
-## 🔮 Future Improvements
-
-### **Features**
-- [ ] ⭐ Favorites system
-- [ ] 🎭 Movie categories (action, comedy, etc.)
-- [ ] 🎬 Trailers and videos
-- [ ] 👤 User profile
-- [ ] 🌐 Multi-language (i18n)
-
-### **Technical**
-- [ ] 🧪 Instrumented tests (UI)
-- [ ] ✨ Shimmer loading effect
-- [ ] 🎨 Advanced animations
-- [ ] 📱 Tablet support
-- [ ] 🔔 New movie notifications
-
-### **Optimizations**
-- [ ] ⚡ Optimized App Startup
-- [ ] 📦 App modularization
-- [ ] 🗜 Image compression with WebP
-- [ ] 🔄 WorkManager for background sync
-- [ ] 📊 Analytics and Crashlytics
-
----
-
-## 📊 Performance
-
-### **Metrics**
-
-| Metric | Value | Status |
-|--------|-------|--------|
-| APK Size | ~8 MB | ✅ Optimized |
-| Startup Time | < 2s | ✅ Fast |
-| Memory Usage | ~50 MB | ✅ Efficient |
-| Network Calls | Cached | ✅ Optimized |
-
-### **Implemented Optimizations**
-
-- ✅ **LazyColumn/Grid**: On-demand rendering
-- ✅ **Coil Cache**: In-memory/disk image cache
-- ✅ **Room Cache**: Reduces network calls
-- ✅ **Paging 3**: Incremental loading
-- ✅ **Debounce**: Reduces search requests
-- ✅ **Coroutines**: Efficient async operations
-
----
-
-## 🐛 Troubleshooting
-
-### **Error: API Key not found**
-
-**Problem**: `BuildConfig.TMDB_API_KEY` returns an empty string
-
-**Solution**:
-1. Check that the `local.properties` file exists
-2. Confirm the key is correct: `TMDB_API_KEY=your_key`
-3. Sync Gradle: `File → Sync Project with Gradle Files`
-4. Rebuild: `Build → Rebuild Project`
-
----
-
-### **Error: Network Security Exception**
-
-**Problem**: App cannot make HTTP requests
-
-**Solution**: TMDB uses HTTPS by default, but if needed add to `AndroidManifest.xml`:
-
-```xml
-<application
-    android:usesCleartextTraffic="true"
-    ...>
-```
-
----
-
-### **Error: Room Schema Export**
-
-**Problem**: Warnings about schema export
-
-**Solution**: Add to `build.gradle.kts`:
-
-```kotlin
-ksp {
-    arg("room.schemaLocation", "$projectDir/schemas")
-}
-```
-
----
-
-### **Error: Compose Preview not working**
-
-**Problem**: Previews not loading
-
-**Solution**:
-1. Invalidate caches: `File → Invalidate Caches → Invalidate and Restart`
-2. Update Android Studio to the latest version
-3. Check that `@Preview` is being used correctly
-
----
-
-## 📱 Compatibility
-
-| Android Version | API Level | Support |
-|-----------------|-----------|---------|
-| Android 14 | 34 | ✅ Full |
-| Android 13 | 33 | ✅ Full |
-| Android 12 | 31-32 | ✅ Full |
-| Android 11 | 30 | ✅ Full |
-| Android 10 | 29 | ✅ Full |
-| Android 9 | 28 | ✅ Full |
-| Android 8 | 26-27 | ✅ Full |
-| Android 7 | 24-25 | ✅ Full |
-
-**Minimum SDK**: 24 (Android 7.0 - Nougat)  
-**Target SDK**: 34 (Android 14)
-
----
-
-## 🔒 Security
-
-### **Implemented Practices**
-
-✅ **Secure API Key**
-- Stored in `local.properties` (not versioned)
-- Injected at build time via BuildConfig
-- Never exposed in source code
-
-✅ **Network Security**
-- HTTPS by default
-- Certificate pinning (optional)
-- Configured timeout (30s)
-
-✅ **Data Protection**
-- Encrypted local cache (optional with SQLCipher)
-- Old cache cleanup (> 7 days)
-
-✅ **ProGuard/R8**
-```properties
-# Obfuscates code in release
--keepattributes *Annotation*
--keep class com.sbaldasso.tmdbapp.** { *; }
-```
-
----
-
-## 📖 Additional Documentation
-
-### **Useful Resources**
-
-- 📚 [TMDB API Documentation](https://developers.themoviedb.org/3)
-- 🎨 [Material Design 3](https://m3.material.io/)
-- 🚀 [Jetpack Compose Docs](https://developer.android.com/jetpack/compose)
-- 💉 [Hilt Documentation](https://dagger.dev/hilt/)
-- 🗄️ [Room Documentation](https://developer.android.com/training/data-storage/room)
-
-### **Tutorials**
-
-- [Clean Architecture in Android](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
-- [MVVM with Jetpack Compose](https://developer.android.com/topic/architecture)
-- [Paging 3 with Compose](https://developer.android.com/topic/libraries/architecture/paging/v3-overview)
-
----
-
-## 👥 Contributing
-
-Contributions are always welcome! 🎉
-
-### **How to Contribute**
-
-1. **Fork** the project
-2. **Create** a branch for your feature
-   ```bash
-   git checkout -b feature/MyFeature
-   ```
-3. **Commit** your changes
-   ```bash
-   git commit -m 'feat: Add new feature'
-   ```
-4. **Push** to the branch
-   ```bash
-   git push origin feature/MyFeature
-   ```
-5. **Open** a Pull Request
-
-### **Commit Standards**
-
-We follow [Conventional Commits](https://www.conventionalcommits.org/):
-
-```
-feat: New feature
-fix: Bug fix
-docs: Documentation
-style: Formatting
-refactor: Refactoring
-test: Tests
-chore: Maintenance
-```
-
-### **Code Style**
-
-- ✅ Use the default Kotlin formatter
-- ✅ Follow naming conventions
-- ✅ Document public functions
-- ✅ Write tests for new features
-
----
-
-## 🙏 Acknowledgements
-
-- [The Movie Database (TMDB)](https://www.themoviedb.org/) - Movie API
-- [Google Android Team](https://developer.android.com/) - Jetpack Libraries
-- [Square](https://square.github.io/) - Retrofit & OkHttp
-- Android Community 🌎
-
----
-
-## 👨‍💻 Author
-
-**Samuel Baldasso**
-
-- GitHub: [@samuelbaldasso](https://github.com/samuelbaldasso)
-- LinkedIn: [Samuel Baldasso](https://linkedin.com/in/samuel-baldasso-java-developer)
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
-
-```
-MIT License
-
-Copyright (c) 2026 - Samuel Baldasso
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
----
-
-<div align="center">
-
-**[⬆ Back to top](#-tmdb-app---android)**
-
----
-
-Made with ❤️ and ☕ by [Samuel Baldasso](https://github.com/samuelbaldasso)
-
-**⭐ If this project was helpful, leave a star!**
-
-</div>
+Este projeto utiliza a API do TMDB, mas não é endossado ou certificado pelo TMDB.

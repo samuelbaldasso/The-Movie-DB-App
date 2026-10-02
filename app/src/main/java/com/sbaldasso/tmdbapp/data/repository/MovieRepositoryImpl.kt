@@ -1,4 +1,9 @@
-package com.sbaldasso.tmdbapp.domain.repository
+package com.sbaldasso.tmdbapp.data.repository
+
+import com.sbaldasso.tmdbapp.domain.repository.MovieRepository
+import com.sbaldasso.tmdbapp.data.local.entity.MovieDetailsEntity
+import com.sbaldasso.tmdbapp.data.local.entity.FavoriteMovieEntity
+import kotlinx.coroutines.CancellationException
 
 import androidx.paging.ExperimentalPagingApi
 import androidx.paging.Pager
@@ -24,22 +29,44 @@ class MovieRepositoryImpl @Inject constructor(
     private val database: AppDatabase
 ) : MovieRepository {
 
+    override fun observeFavorites(): Flow<List<Movie>> =
+        database.favoriteMovieDao().observeAll().map { favorites ->
+            favorites.map { it.movie.toDomain() }
+        }
+
+    override fun observeIsFavorite(movieId: Int): Flow<Boolean> =
+        database.favoriteMovieDao().observeIsFavorite(movieId)
+
+    override suspend fun setFavorite(movie: Movie, favorite: Boolean) {
+        if (favorite) {
+            database.favoriteMovieDao().insert(FavoriteMovieEntity(movie.id, movie.toEntity(0)))
+        } else {
+            database.favoriteMovieDao().delete(movie.id)
+        }
+    }
+
     override suspend fun getMovieDetails(movieId: Int): Result<Movie> {
         return try {
             val movieDto = apiService.getMovieDetails(movieId)
             val movie = movieDto.toDomain()
 
-            movieDao.insertMovie(movie.toEntity(page = 0))
+            database.movieDetailsDao().insert(MovieDetailsEntity(movie.id, movie.toEntity(0)))
 
             Result.success(movie)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             try {
-                val cachedMovie = movieDao.getMovieById(movieId)
+                val cachedMovie = database.movieDetailsDao().getById(movieId)?.movie
+                    ?: database.favoriteMovieDao().getById(movieId)?.movie
+                    ?: movieDao.getMovieById(movieId)
                 if (cachedMovie != null) {
                     Result.success(cachedMovie.toDomain())
                 } else {
                     Result.failure(e)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (cacheException: Exception) {
                 Result.failure(e)
             }

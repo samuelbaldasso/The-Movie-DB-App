@@ -1,53 +1,25 @@
+package com.sbaldasso.tmdbapp
+
 import androidx.paging.PagingData
-import app.cash.turbine.test
+import androidx.paging.testing.asSnapshot
 import com.sbaldasso.tmdbapp.domain.model.Movie
 import com.sbaldasso.tmdbapp.domain.usecase.GetPopularMoviesUseCase
 import com.sbaldasso.tmdbapp.presentation.screen.home.HomeViewModel
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
-import org.junit.After
-import org.junit.Assert.assertNotNull
-import org.junit.Before
+import org.junit.Assert.assertEquals
+import org.junit.Rule
 import org.junit.Test
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
+    @get:Rule val main = MainDispatcherRule()
 
-    private val testDispatcher = StandardTestDispatcher()
-    private lateinit var getPopularMoviesUseCase: GetPopularMoviesUseCase
-    private lateinit var viewModel: HomeViewModel
-
-    @Before
-    fun setup() {
-        Dispatchers.setMain(testDispatcher)
-        getPopularMoviesUseCase = mockk()
-    }
-
-    @After
-    fun tearDown() {
-        Dispatchers.resetMain()
-    }
-
-    @Test
-    fun `moviesFlow should emit paging data from use case`() = runTest {
-        // Given
-        val pagingData = PagingData.from(emptyList<Movie>())
-        every { getPopularMoviesUseCase() } returns flowOf(pagingData)
-
-        // When
-        viewModel = HomeViewModel(getPopularMoviesUseCase)
-
-        // Then
-        viewModel.moviesFlow.test {
-            assertNotNull(awaitItem())
-            cancelAndIgnoreRemainingEvents()
-        }
+    @Test fun `moviesFlow emits use case movies`() = runTest {
+        val useCase = mockk<GetPopularMoviesUseCase>()
+        val movies = listOf(Movie(1, "Film", "", null, null, 8.0, "", 1.0))
+        every { useCase() } returns flowOf(pagingData(movies))
+        assertEquals(movies, HomeViewModel(useCase).moviesFlow.asSnapshot())
     }
 }

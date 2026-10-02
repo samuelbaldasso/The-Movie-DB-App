@@ -10,7 +10,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,7 +31,7 @@ fun SearchScreen(
     onMovieClick: (Int) -> Unit,
     viewModel: SearchViewModel = hiltViewModel()
 ) {
-    val query by viewModel.query.collectAsState()
+    val query by viewModel.query.collectAsStateWithLifecycle()
     val movies = viewModel.searchResults.collectAsLazyPagingItems()
 
     Scaffold(
@@ -70,6 +70,10 @@ fun SearchScreen(
                         EmptySearchState()
                     }
 
+                    query.trim().length < 3 -> {
+                        Text("Digite pelo menos 3 caracteres.", modifier = Modifier.align(Alignment.Center))
+                    }
+
                     movies.loadState.refresh is LoadState.Loading -> {
                         LoadingIndicator(message = "Buscando filmes...")
                     }
@@ -88,7 +92,7 @@ fun SearchScreen(
 
                     else -> {
                         LazyVerticalGrid(
-                            columns = GridCells.Fixed(2),
+                            columns = GridCells.Adaptive(160.dp),
                             contentPadding = PaddingValues(16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -106,8 +110,13 @@ fun SearchScreen(
                             }
 
                             // Loading mais itens (append)
+                            if (movies.loadState.append is LoadState.Error) {
+                                item(span = { GridItemSpan(maxLineSpan) }) {
+                                    ErrorView(message = "Erro ao carregar mais resultados", onRetry = { movies.retry() })
+                                }
+                            }
                             if (movies.loadState.append is LoadState.Loading) {
-                                item(span = { GridItemSpan(2) }) {
+                                item(span = { GridItemSpan(maxLineSpan) }) {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()

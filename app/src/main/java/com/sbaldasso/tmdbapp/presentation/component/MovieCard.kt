@@ -2,6 +2,11 @@ package com.sbaldasso.tmdbapp.presentation.component
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import com.sbaldasso.tmdbapp.R
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -30,6 +35,9 @@ fun MovieCard(
         Box {
             AsyncImage(
                 model = movie.getPosterUrl(),
+                placeholder = painterResource(R.drawable.ic_image_placeholder),
+                error = painterResource(R.drawable.ic_image_placeholder),
+                fallback = painterResource(R.drawable.ic_image_placeholder),
                 contentDescription = movie.title,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
@@ -40,6 +48,7 @@ fun MovieCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomStart)
+                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.9f))))
                     .padding(12.dp)
             ) {
                 RatingBadge(
@@ -50,7 +59,7 @@ fun MovieCard(
                 Text(
                     text = movie.title,
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.background,
+                    color = Color.White,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )

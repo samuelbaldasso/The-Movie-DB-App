@@ -8,7 +8,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -27,7 +27,7 @@ fun DetailsScreen(
     onBackClick: () -> Unit,
     viewModel: DetailsViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -115,6 +115,17 @@ fun DetailsScreen(
                             }
 
                             Spacer(modifier = Modifier.height(24.dp))
+
+                            Button(
+                                onClick = viewModel::toggleFavorite,
+                                enabled = !uiState.isSavingFavorite
+                            ) {
+                                Text(if (uiState.isFavorite) "Remover dos favoritos" else "Adicionar aos favoritos")
+                            }
+                            uiState.favoriteError?.let {
+                                Text(it, color = MaterialTheme.colorScheme.error)
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
 
                             // Sinopse
                             Text(

@@ -2,6 +2,7 @@ package com.sbaldasso.tmdbapp.data.paging
 
 import androidx.paging.ExperimentalPagingApi
 import androidx.paging.LoadType
+import kotlinx.coroutines.CancellationException
 import androidx.paging.PagingState
 import androidx.paging.RemoteMediator
 import androidx.room.withTransaction
@@ -34,7 +35,7 @@ class MovieRemoteMediator(
 
         return try {
             val response = apiService.getPopularMovies(page)
-            val isEndOfList = response.results.isEmpty()
+            val isEndOfList = response.results.isEmpty() || page >= response.totalPages
 
             database.withTransaction {
                 if (loadType == LoadType.REFRESH) {
@@ -56,6 +57,8 @@ class MovieRemoteMediator(
             }
 
             MediatorResult.Success(endOfPaginationReached = isEndOfList)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             MediatorResult.Error(e)
         }
